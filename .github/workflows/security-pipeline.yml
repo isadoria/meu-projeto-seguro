@@ -1,0 +1,76 @@
+name: DevSecOps Security Pipeline
+
+# Quando executar esta pipeline
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  security-scan:
+    name: Verificação de Segurança
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Passo 1: Baixar o código
+      - name:  Checkout do código
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Necessário para detectar todo o histórico
+      
+      # Passo 2: Instalar o Gitleaks (detector de secrets)
+      - name:  Instalar Gitleaks
+        run: |
+          wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+      
+      # Passo 3: Escanear por senhas e secrets
+      - name:  Detectar Senhas e Secrets
+        run: |
+          echo " Iniciando varredura de segurança..."
+          gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || SCAN_FAILED=true
+          
+          if [ "$SCAN_FAILED" = "true" ]; then
+            echo " ALERTA DE SEGURANÇA: Senhas ou secrets detectados!"
+            echo " Detalhes do problema:"
+            cat gitleaks-report.json
+            exit 1
+          else
+            echo " Nenhum secret detectado! Código aprovado."
+          fi
+      
+      # Passo 4: Upload do relatório (se houver problemas)
+      - name: Upload Relatório de Segurança
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: gitleaks-report.json
+  
+  build-and-test:
+    name: Build e Testes
+    needs: security-scan  # Só executa se a verificação de segurança passar
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name:  Checkout do código
+        uses: actions/checkout@v3
+      
+      - name:  Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name:  Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name:  Executar aplicação
+        run: |
+          echo " Executando aplicação..."
+          python app.py
+          echo " Deploy simulado com sucesso!"
