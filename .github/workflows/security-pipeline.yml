@@ -1,6 +1,5 @@
 name: DevSecOps Security Pipeline
 
-# Quando executar esta pipeline
 on:
   push:
     branches: [ main, master ]
@@ -9,68 +8,64 @@ on:
 
 jobs:
   security-scan:
-    name: Verificação de Segurança
+    name: Security Check
     runs-on: ubuntu-latest
     
     steps:
-      # Passo 1: Baixar o código
-      - name:  Checkout do código
+      - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Necessário para detectar todo o histórico
+          fetch-depth: 0
       
-      # Passo 2: Instalar o Gitleaks (detector de secrets)
-      - name:  Instalar Gitleaks
+      - name: Install Gitleaks
         run: |
           wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
           tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
           sudo mv gitleaks /usr/local/bin/
           gitleaks version
       
-      # Passo 3: Escanear por senhas e secrets
-      - name:  Detectar Senhas e Secrets
+      - name: Scan for secrets
         run: |
-          echo " Iniciando varredura de segurança..."
+          echo "Starting security scan..."
           gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || SCAN_FAILED=true
           
           if [ "$SCAN_FAILED" = "true" ]; then
-            echo " ALERTA DE SEGURANÇA: Senhas ou secrets detectados!"
-            echo " Detalhes do problema:"
+            echo "SECURITY ALERT: Secrets detected!"
+            echo "Report details:"
             cat gitleaks-report.json
             exit 1
           else
-            echo " Nenhum secret detectado! Código aprovado."
+            echo "No secrets detected. Code approved!"
           fi
       
-      # Passo 4: Upload do relatório (se houver problemas)
-      - name: Upload Relatório de Segurança
+      - name: Upload security report
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: gitleaks-report.json
   
   build-and-test:
-    name: Build e Testes
-    needs: security-scan  # Só executa se a verificação de segurança passar
+    name: Build and Test
+    needs: security-scan
     runs-on: ubuntu-latest
     
     steps:
-      - name:  Checkout do código
+      - name: Checkout code
         uses: actions/checkout@v3
       
-      - name:  Configurar Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
       
-      - name:  Instalar dependências
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
-      - name:  Executar aplicação
+      - name: Run application
         run: |
-          echo " Executando aplicação..."
+          echo "Running application..."
           python app.py
-          echo " Deploy simulado com sucesso!"
+          echo "Deploy successful!"
