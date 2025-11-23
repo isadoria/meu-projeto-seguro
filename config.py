@@ -1,14 +1,9 @@
 # ATENÇÃO: Este código é INSEGURO de propósito para testar a pipeline!
 
-#DATABASE_CONFIG = {
- #   "host": "localhost",
- #   "user": "admin",
- #  "password": "senha123456",
- #   "database": "producao"
-#}
+import os
 
-# API_KEY = "sk_live_1234567890abcdefghijklmnop"
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
 
-# AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
-#print("Configurações carregadas")
